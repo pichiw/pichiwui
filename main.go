@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/gowasm/vecty"
 	"github.com/gowasm/vecty/elem"
 	"github.com/pichiw/leaflet"
@@ -12,8 +14,17 @@ func main() {
 	vecty.SetTitle("Pichiw")
 	vecty.AddStylesheet("app.css")
 
+	coordinates := leaflet.NewCoordinates(
+		49.8951, -97.1384,
+		48.8469, -99.8011,
+		53.8896, -111.4657,
+		49.2827, -123.1207,
+	)
+
 	m := leaflet.NewMap(
 		"mapid",
+		leaflet.NewCoordinate(49.8951, -97.1384),
+		6,
 		leaflet.NewTileLayer(
 			leaflet.TileLayerOptions{
 				MaxZoom:     18,
@@ -26,14 +37,25 @@ func main() {
 					Color: "#ff0000",
 				},
 			},
-			leaflet.NewCoordinate(49.8951, -97.1384),
-			leaflet.NewCoordinate(48.8951, -97.1384),
+			coordinates...,
 		),
 	)
 
+	for _, c := range coordinates {
+		m.Add(leaflet.NewMarker(c))
+	}
 	vecty.RenderBody(&Home{
 		m: m,
 	})
+
+	go func() {
+		for {
+			for _, c := range coordinates {
+				time.Sleep(time.Second * 3)
+				m.View(c, m.Zoom())
+			}
+		}
+	}()
 
 	<-c
 }
