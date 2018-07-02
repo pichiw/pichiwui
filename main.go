@@ -23,8 +23,12 @@ func main() {
 
 	m := leaflet.NewMap(
 		"mapid",
-		leaflet.NewCoordinate(49.8951, -97.1384),
-		6,
+		leaflet.MapOptions{
+			Center:  leaflet.NewCoordinate(49.8951, -97.1384),
+			Zoom:    6,
+			MaxZoom: 18,
+		},
+		nil,
 		leaflet.NewTileLayer(
 			leaflet.TileLayerOptions{
 				MaxZoom:     18,
