@@ -1,7 +1,7 @@
 package main
 
 import (
-	"time"
+	"github.com/gowasm/gopherwasm/js"
 
 	"github.com/gowasm/vecty"
 	"github.com/gowasm/vecty/elem"
@@ -14,12 +14,30 @@ func main() {
 	vecty.SetTitle("Pichiw")
 	vecty.AddStylesheet("app.css")
 
-	coordinates := leaflet.NewCoordinates(
-		49.8951, -97.1384,
-		48.8469, -99.8011,
-		53.8896, -111.4657,
-		49.2827, -123.1207,
-	)
+	entities := []*Entity{
+		&Entity{
+			Name:  "Red River",
+			Coord: leaflet.NewCoordinate(49.8951, -97.1384),
+		},
+		&Entity{
+			Name:  "Turtle Mountain",
+			Coord: leaflet.NewCoordinate(48.8469, -99.8011),
+		},
+		&Entity{
+			Name:  "St. Paul des Metis",
+			Coord: leaflet.NewCoordinate(53.8896, -111.4657),
+		},
+		&Entity{
+			Name:  "Vancouver",
+			Coord: leaflet.NewCoordinate(49.2827, -123.1207),
+		},
+	}
+
+	var coordinates []*leaflet.Coordinate
+
+	for _, e := range entities {
+		coordinates = append(coordinates, e.Coord)
+	}
 
 	m := leaflet.NewMap(
 		"mapid",
@@ -35,48 +53,73 @@ func main() {
 				Attribution: `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>`,
 			},
 		),
-		leaflet.NewPolyline(
-			leaflet.PolylineOptions{
-				PathOptions: leaflet.PathOptions{
-					Color: "#ff0000",
-				},
-			},
-			coordinates...,
-		),
 	)
 
-	for _, c := range coordinates {
-		m.Add(leaflet.NewMarker(c))
-	}
-
-	e := &Element{}
 	b := &Home{
 		m: m,
-		e: e,
 	}
-	vecty.RenderBody(b)
 
-	go func() {
-		time.Sleep(time.Second * 5)
-		e.Name = "Hello"
-		vecty.Rerender(b)
-		time.Sleep(time.Second * 5)
-		e.Name = ""
-		vecty.Rerender(b)
-	}()
+	colors := []string{
+		"#ff0000",
+		"#aa2200",
+		"#66aa00",
+		"#00ff00",
+	}
+
+	for i := range entities {
+		entity := entities[i]
+
+		if i > 0 {
+			m.Add(
+				leaflet.NewPolyline(
+					leaflet.PolylineOptions{
+						PathOptions: leaflet.PathOptions{
+							Color: colors[i],
+						},
+					},
+					entities[i-1].Coord,
+					entity.Coord,
+				),
+			)
+		}
+
+		m.Add(
+			leaflet.NewMarker(
+				entity.Coord,
+				leaflet.Events{
+					"click": func(vs []js.Value) {
+						if b.e.entity == nil || b.e.entity != entity {
+							b.e.entity = entity
+							b.m.View(entity.Coord, b.m.Zoom())
+						} else {
+							b.e.entity = nil
+						}
+						vecty.Rerender(b)
+					},
+				},
+			),
+		)
+	}
+
+	vecty.RenderBody(b)
 
 	<-c
 }
 
-type Element struct {
-	vecty.Core
-	Name string
+type Entity struct {
+	Name  string
+	Coord *leaflet.Coordinate
 }
 
-func (p *Element) Render() vecty.ComponentOrHTML {
+type EntityEditor struct {
+	vecty.Core
+	entity *Entity
+}
+
+func (p *EntityEditor) Render() vecty.ComponentOrHTML {
 	return elem.Div(
 		elem.Heading2(
-			vecty.Text(p.Name),
+			vecty.Text(p.entity.Name),
 		),
 	)
 }
@@ -85,12 +128,12 @@ func (p *Element) Render() vecty.ComponentOrHTML {
 type Home struct {
 	vecty.Core
 	m *leaflet.Map
-	e *Element
+	e EntityEditor
 }
 
 // Render implements the vecty.Component interface.
 func (p *Home) Render() vecty.ComponentOrHTML {
-	hasElement := len(p.e.Name) > 0
+	hasElement := p.e.entity != nil
 	return elem.Body(
 		elem.Div(
 			vecty.Markup(
@@ -125,7 +168,7 @@ func (p *Home) Render() vecty.ComponentOrHTML {
 						vecty.Markup(
 							vecty.Class("mdc-layout-grid__cell", "mdc-layout-grid__cell--span-4"),
 						),
-						p.e,
+						&p.e,
 					),
 				),
 			),
