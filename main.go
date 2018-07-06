@@ -1,6 +1,8 @@
 package main
 
 import (
+	"sync"
+
 	"github.com/gowasm/gopherwasm/js"
 
 	"github.com/gowasm/vecty"
@@ -15,41 +17,54 @@ func main() {
 	vecty.SetTitle("Pichiw")
 	vecty.AddStylesheet("app.css")
 
+	model := []*Entity{
+		&Entity{
+			Name:  "Red River",
+			Coord: leaflet.NewCoordinate(49.8951, -97.1384),
+		},
+		&Entity{
+			Name:  "Turtle Mountain",
+			Coord: leaflet.NewCoordinate(48.8469, -99.8011),
+		},
+		&Entity{
+			Name:  "St. Paul des Metis",
+			Coord: leaflet.NewCoordinate(53.8896, -111.4657),
+		},
+		&Entity{
+			Name:  "Vancouver",
+			Coord: leaflet.NewCoordinate(49.2827, -123.1207),
+		},
+	}
+
+	m := leaflet.NewMap(
+		"mapid",
+		leaflet.MapOptions{
+			Center:  leaflet.NewCoordinate(49.8951, -97.1384),
+			Zoom:    6,
+			MaxZoom: 18,
+		},
+		nil,
+	)
 	b := &Home{
-		model: []*Entity{
-			&Entity{
-				Name:  "Red River",
-				Coord: leaflet.NewCoordinate(49.8951, -97.1384),
-			},
-			&Entity{
-				Name:  "Turtle Mountain",
-				Coord: leaflet.NewCoordinate(48.8469, -99.8011),
-			},
-			&Entity{
-				Name:  "St. Paul des Metis",
-				Coord: leaflet.NewCoordinate(53.8896, -111.4657),
-			},
-			&Entity{
-				Name:  "Vancouver",
-				Coord: leaflet.NewCoordinate(49.2827, -123.1207),
+		model: model,
+		m:     m,
+		min:   0,
+		max:   len(model),
+	}
+
+	b.slider = md.NewSlider(
+		md.SliderOptions{
+			Min: 0,
+			Max: float64(len(model)),
+			OnChange: func(s *md.Slider) {
+				b.valMutex.Lock()
+				b.max = int(s.Value())
+				b.valMutex.Unlock()
+				vecty.Rerender(b)
+				b.updateMapFromModel()
 			},
 		},
-		m: leaflet.NewMap(
-			"mapid",
-			leaflet.MapOptions{
-				Center:  leaflet.NewCoordinate(49.8951, -97.1384),
-				Zoom:    6,
-				MaxZoom: 18,
-			},
-			nil,
-			leaflet.NewTileLayer(
-				leaflet.TileLayerOptions{
-					MaxZoom:     18,
-					Attribution: `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>`,
-				},
-			),
-		),
-	}
+	)
 
 	vecty.RenderBody(b)
 
@@ -79,10 +94,31 @@ type Home struct {
 	m *leaflet.Map
 	e EntityEditor
 
-	model []*Entity
+	slider  *md.Slider
+	model   []*Entity
+	polys   []*leaflet.Polyline
+	markers []*leaflet.Marker
+
+	min      int
+	max      int
+	valMutex sync.Mutex
 }
 
 func (p *Home) updateMapFromModel() {
+	p.valMutex.Lock()
+	defer p.valMutex.Unlock()
+
+	for _, poly := range p.polys {
+		poly.Remove()
+	}
+
+	for _, marker := range p.markers {
+		marker.Remove()
+	}
+
+	p.polys = nil
+	p.markers = nil
+
 	colors := []string{
 		"#ff0000",
 		"#aa2200",
@@ -90,11 +126,10 @@ func (p *Home) updateMapFromModel() {
 		"#00ff00",
 	}
 
-	for i := range p.model {
-		entity := p.model[i]
-
+	for i, entity := range p.model[p.min:p.max] {
+		e := entity
 		if i > 0 {
-			p.m.Add(
+			p.polys = append(p.polys,
 				leaflet.NewPolyline(
 					leaflet.PolylineOptions{
 						PathOptions: leaflet.PathOptions{
@@ -102,19 +137,19 @@ func (p *Home) updateMapFromModel() {
 						},
 					},
 					p.model[i-1].Coord,
-					entity.Coord,
+					e.Coord,
 				),
 			)
 		}
 
-		p.m.Add(
+		p.markers = append(p.markers,
 			leaflet.NewMarker(
-				entity.Coord,
+				e.Coord,
 				leaflet.Events{
 					"click": func(vs []js.Value) {
-						if p.e.entity == nil || p.e.entity != entity {
-							p.e.entity = entity
-							p.m.View(entity.Coord, p.m.Zoom())
+						if p.e.entity == nil || p.e.entity != e {
+							p.e.entity = e
+							p.m.View(e.Coord, p.m.Zoom())
 						} else {
 							p.e.entity = nil
 						}
@@ -124,11 +159,31 @@ func (p *Home) updateMapFromModel() {
 			),
 		)
 	}
+
+	for _, m := range p.markers {
+		p.m.Add(m)
+	}
+
+	for _, poly := range p.polys {
+		p.m.Add(poly)
+	}
+}
+
+func (p *Home) Mount() {
+	p.m.Add(
+		leaflet.NewTileLayer(
+			leaflet.TileLayerOptions{
+				MaxZoom:     18,
+				Attribution: `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>`,
+			},
+		),
+	)
+
+	p.updateMapFromModel()
 }
 
 // Render implements the vecty.Component interface.
 func (p *Home) Render() vecty.ComponentOrHTML {
-	p.updateMapFromModel()
 	hasElement := p.e.entity != nil
 	mapSpan := 10
 	if hasElement {
@@ -152,7 +207,7 @@ func (p *Home) Render() vecty.ComponentOrHTML {
 					),
 				),
 				md.LayoutGridCell(md.LayoutGridCellOptions{Span: 12},
-					&md.Slider{},
+					p.slider,
 				),
 			),
 		),
