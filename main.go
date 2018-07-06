@@ -145,10 +145,14 @@ func (p *Home) Render() vecty.ComponentOrHTML {
 				),
 				vecty.If(hasElement,
 					elem.Div(
-						md.LayoutGridCell(md.LayoutGridCellOptions{Span: 4},
+						md.LayoutGridCell(
+							md.LayoutGridCellOptions{Span: 4},
 							&p.e,
 						),
 					),
+				),
+				md.LayoutGridCell(md.LayoutGridCellOptions{Span: 12},
+					&md.Slider{},
 				),
 			),
 		),
