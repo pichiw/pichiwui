@@ -49,20 +49,23 @@ func main() {
 		model: model,
 		m:     m,
 		min:   0,
-		max:   len(model),
+		max:   len(model) - 1,
+	}
+
+	onSliderChange := func(s *md.Slider) {
+		b.valMutex.Lock()
+		b.max = int(s.Value())
+		b.valMutex.Unlock()
+		b.updateMapFromModel()
+		vecty.Rerender(b)
 	}
 
 	b.slider = md.NewSlider(
 		md.SliderOptions{
-			Min: 0,
-			Max: float64(len(model)),
-			OnChange: func(s *md.Slider) {
-				b.valMutex.Lock()
-				b.max = int(s.Value())
-				b.valMutex.Unlock()
-				vecty.Rerender(b)
-				b.updateMapFromModel()
-			},
+			Min:      0,
+			Max:      float64(len(model)),
+			OnChange: onSliderChange,
+			OnInput:  onSliderChange,
 		},
 	)
 
@@ -104,7 +107,7 @@ type Home struct {
 	valMutex sync.Mutex
 }
 
-func (p *Home) updateMapFromModel() {
+func (p *Home) updateModel() {
 	p.valMutex.Lock()
 	defer p.valMutex.Unlock()
 
@@ -126,7 +129,7 @@ func (p *Home) updateMapFromModel() {
 		"#00ff00",
 	}
 
-	for i, entity := range p.model[p.min:p.max] {
+	for i, entity := range p.model {
 		e := entity
 		if i > 0 {
 			p.polys = append(p.polys,
@@ -169,6 +172,31 @@ func (p *Home) updateMapFromModel() {
 	}
 }
 
+func (p *Home) updateMapFromModel() {
+	p.valMutex.Lock()
+	defer p.valMutex.Unlock()
+
+	for i := range p.model {
+		if i > 0 {
+			p.polys[i-1].Remove()
+		}
+
+		p.markers[i].Remove()
+	}
+
+	for i := range p.model {
+		if i < p.min || i > p.max {
+			continue
+		}
+
+		if i > 0 {
+			p.m.Add(p.polys[i-1])
+		}
+
+		p.m.Add(p.markers[i])
+	}
+}
+
 func (p *Home) Mount() {
 	p.m.Add(
 		leaflet.NewTileLayer(
@@ -179,6 +207,7 @@ func (p *Home) Mount() {
 		),
 	)
 
+	p.updateModel()
 	p.updateMapFromModel()
 }
 
