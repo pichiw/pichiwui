@@ -1,219 +1,128 @@
 package main
 
 import (
+	"fmt"
+	"image/color"
 	"sync"
-
-	"github.com/gowasm/gopherwasm/js"
 
 	"github.com/gowasm/vecty"
 	"github.com/gowasm/vecty/elem"
 	"github.com/pichiw/leaflet"
 	"github.com/pichiw/md"
+	"github.com/pichiw/pichiwui/components"
 )
+
+const mapDiv = "mapid"
 
 func main() {
 	c := make(chan struct{}, 0)
 
-	vecty.SetTitle("Pichiw")
-	vecty.AddStylesheet("app.css")
-
-	model := []*Entity{
-		&Entity{
+	model := []*components.Entity{
+		&components.Entity{
 			Name:  "Red River",
 			Coord: leaflet.NewCoordinate(49.8951, -97.1384),
 		},
-		&Entity{
+		&components.Entity{
 			Name:  "Turtle Mountain",
 			Coord: leaflet.NewCoordinate(48.8469, -99.8011),
 		},
-		&Entity{
+		&components.Entity{
 			Name:  "St. Paul des Metis",
 			Coord: leaflet.NewCoordinate(53.8896, -111.4657),
 		},
-		&Entity{
+		&components.Entity{
 			Name:  "Vancouver",
 			Coord: leaflet.NewCoordinate(49.2827, -123.1207),
 		},
 	}
 
-	m := leaflet.NewMap(
-		"mapid",
-		leaflet.MapOptions{
-			Center:  leaflet.NewCoordinate(49.8951, -97.1384),
-			Zoom:    6,
-			MaxZoom: 18,
-		},
-		nil,
-	)
 	b := &Home{
-		model: model,
-		m:     m,
-		min:   0,
-		max:   len(model) - 1,
+		model:  model,
+		mapDiv: mapDiv,
+		min:    0,
+		max:    len(model) - 1,
 	}
 
-	onSliderChange := func(s *md.Slider) {
-		b.valMutex.Lock()
-		b.max = int(s.Value())
-		b.valMutex.Unlock()
-		b.updateMapFromModel()
-		vecty.Rerender(b)
-	}
-
-	b.slider = md.NewSlider(
-		md.SliderOptions{
-			Min:      0,
-			Max:      float64(len(model)),
-			OnChange: onSliderChange,
-			OnInput:  onSliderChange,
-		},
-	)
-
+	vecty.SetTitle("Pichiw")
+	vecty.AddStylesheet("app.css")
 	vecty.RenderBody(b)
 
 	<-c
 }
 
-type Entity struct {
-	Name  string
-	Coord *leaflet.Coordinate
-}
-
-type EntityEditor struct {
-	vecty.Core
-	entity *Entity
-}
-
-func (p *EntityEditor) Render() vecty.ComponentOrHTML {
-	return elem.Div(
-		elem.Heading2(
-			vecty.Text(p.entity.Name),
-		),
-	)
-}
-
 type Home struct {
 	vecty.Core
-	m *leaflet.Map
-	e EntityEditor
 
-	slider  *md.Slider
-	model   []*Entity
-	polys   []*leaflet.Polyline
-	markers []*leaflet.Marker
+	mapDiv    string
+	m         *leaflet.Map
+	entityMap *components.EntityMap
+	mapOnce   sync.Once
+
+	currentEntity *components.Entity
+	entityMutex   sync.Mutex
+
+	slider *md.Slider
+	model  []*components.Entity
 
 	min      int
 	max      int
 	valMutex sync.Mutex
 }
 
-func (p *Home) updateModel() {
-	p.valMutex.Lock()
-	defer p.valMutex.Unlock()
-
-	for _, poly := range p.polys {
-		poly.Remove()
+func shown(model []*components.Entity, min, max int) []bool {
+	s := make([]bool, len(model))
+	for i := min; i < max; i++ {
+		s[i] = true
 	}
-
-	for _, marker := range p.markers {
-		marker.Remove()
-	}
-
-	p.polys = nil
-	p.markers = nil
-
-	colors := []string{
-		"#ff0000",
-		"#aa2200",
-		"#66aa00",
-		"#00ff00",
-	}
-
-	for i, entity := range p.model {
-		e := entity
-		if i > 0 {
-			p.polys = append(p.polys,
-				leaflet.NewPolyline(
-					leaflet.PolylineOptions{
-						PathOptions: leaflet.PathOptions{
-							Color: colors[i],
-						},
-					},
-					p.model[i-1].Coord,
-					e.Coord,
-				),
-			)
-		}
-
-		p.markers = append(p.markers,
-			leaflet.NewMarker(
-				e.Coord,
-				leaflet.Events{
-					"click": func(vs []js.Value) {
-						if p.e.entity == nil || p.e.entity != e {
-							p.e.entity = e
-							p.m.View(e.Coord, p.m.Zoom())
-						} else {
-							p.e.entity = nil
-						}
-						vecty.Rerender(p)
-					},
-				},
-			),
-		)
-	}
-
-	for _, m := range p.markers {
-		p.m.Add(m)
-	}
-
-	for _, poly := range p.polys {
-		p.m.Add(poly)
-	}
+	return s
 }
 
-func (p *Home) updateMapFromModel() {
+func (p *Home) onSliderChange(s *md.Slider) {
 	p.valMutex.Lock()
-	defer p.valMutex.Unlock()
-
-	for i := range p.model {
-		if i > 0 {
-			p.polys[i-1].Remove()
-		}
-
-		p.markers[i].Remove()
-	}
-
-	for i := range p.model {
-		if i < p.min || i > p.max {
-			continue
-		}
-
-		if i > 0 {
-			p.m.Add(p.polys[i-1])
-		}
-
-		p.m.Add(p.markers[i])
-	}
+	p.max = int(s.Value())
+	p.entityMap.Show(shown(p.model, p.min, p.max))
+	p.valMutex.Unlock()
+	vecty.Rerender(p)
 }
 
 func (p *Home) Mount() {
-	p.m.Add(
-		leaflet.NewTileLayer(
-			leaflet.TileLayerOptions{
-				MaxZoom:     18,
-				Attribution: `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>`,
+	p.mapOnce.Do(func() {
+		p.m = leaflet.NewMap(
+			p.mapDiv,
+			leaflet.MapOptions{
+				Center:  leaflet.NewCoordinate(49.8951, -97.1384),
+				Zoom:    6,
+				MaxZoom: 18,
 			},
-		),
-	)
+			nil,
+		)
+		p.m.Add(
+			leaflet.NewTileLayer(
+				leaflet.TileLayerOptions{
+					MaxZoom:     18,
+					Attribution: `&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>`,
+				},
+			),
+		)
 
-	p.updateModel()
-	p.updateMapFromModel()
+		p.entityMap = components.NewEntityMap(p.m, p.onEntityClick, color.RGBA{255, 0, 0, 255}, p.model...)
+		p.entityMap.Show(shown(p.model, 0, len(p.model)))
+	})
+}
+
+func (p *Home) onEntityClick(e *components.Entity) {
+	p.entityMutex.Lock()
+	p.currentEntity = e
+	p.entityMutex.Unlock()
+	vecty.Rerender(p)
+	fmt.Println(e.Name)
 }
 
 // Render implements the vecty.Component interface.
 func (p *Home) Render() vecty.ComponentOrHTML {
-	hasElement := p.e.entity != nil
+	p.entityMutex.Lock()
+	hasElement := p.currentEntity != nil
+	p.entityMutex.Unlock()
 	mapSpan := 10
 	if hasElement {
 		mapSpan = 6
@@ -225,18 +134,25 @@ func (p *Home) Render() vecty.ComponentOrHTML {
 					elem.Heading1(vecty.Text("Pichiw")),
 				),
 				md.LayoutGridCell(md.LayoutGridCellOptions{Span: mapSpan},
-					p.m,
+					elem.Div(vecty.Markup(vecty.Attribute("id", p.mapDiv))),
 				),
 				vecty.If(hasElement,
 					elem.Div(
 						md.LayoutGridCell(
 							md.LayoutGridCellOptions{Span: 4},
-							&p.e,
+							components.NewEntityEditor(p.currentEntity),
 						),
 					),
 				),
 				md.LayoutGridCell(md.LayoutGridCellOptions{Span: 12},
-					p.slider,
+					md.NewSlider(
+						md.SliderOptions{
+							Min:      0,
+							Max:      float64(len(p.model)),
+							OnChange: p.onSliderChange,
+							OnInput:  p.onSliderChange,
+						},
+					),
 				),
 			),
 		),
