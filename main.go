@@ -34,7 +34,7 @@ func main() {
 	}
 
 	vecty.SetTitle("Pichiw")
-	vecty.AddStylesheet("app.css")
+
 	vecty.RenderBody(b)
 
 	<-c

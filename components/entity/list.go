@@ -48,7 +48,12 @@ func shown(model []*Entity, min, max int) []bool {
 
 func (l *List) onSliderChange(s *md.Slider) {
 	l.valMutex.Lock()
-	l.max = int(s.Value())
+	newValue := int(s.Value())
+	if newValue == l.max {
+		l.valMutex.Unlock()
+		return
+	}
+	l.max = newValue
 	l.em.Show(shown(l.model, l.min, l.max))
 	l.valMutex.Unlock()
 	vecty.Rerender(l)
@@ -65,14 +70,13 @@ func (l *List) Mount() {
 			},
 			nil,
 		)
-		l.m.Add(
-			leaflet.NewTileLayer(
-				leaflet.TileLayerOptions{
-					MaxZoom:     18,
-					Attribution: `&copy; <a href="http://www.openstreetmal.org/copyright">OpenStreetMap</a>`,
-				},
-			),
-		)
+
+		leaflet.NewTileLayer(
+			leaflet.TileLayerOptions{
+				MaxZoom:     18,
+				Attribution: `&copy; <a href="http://www.openstreetmal.org/copyright">OpenStreetMap</a>`,
+			},
+		).AddTo(l.m)
 
 		l.em = NewMap(l.m, l.onEntityClick, color.RGBA{255, 0, 0, 255}, l.model...)
 		l.em.Show(shown(l.model, 0, len(l.model)))
@@ -80,7 +84,11 @@ func (l *List) Mount() {
 }
 
 func (l *List) onEntityClick(e *Entity) {
-	l.editor.SetEntity(e)
+	if l.editor.Entity() == e {
+		l.editor.SetEntity(nil)
+	} else {
+		l.editor.SetEntity(e)
+	}
 	vecty.Rerender(l)
 }
 

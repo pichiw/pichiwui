@@ -85,9 +85,9 @@ func (em *Map) Show(shown []bool) {
 		}
 
 		if s {
-			em.m.Add(em.markers[i])
+			em.markers[i].AddTo(em.m)
 			if i > 0 {
-				em.m.Add(em.polylines[i-1])
+				em.polylines[i-1].AddTo(em.m)
 			}
 		} else {
 			if !initial {
