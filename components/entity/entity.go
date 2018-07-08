@@ -1,4 +1,4 @@
-package components
+package entity
 
 import "github.com/pichiw/leaflet"
 

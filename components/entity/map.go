@@ -1,4 +1,4 @@
-package components
+package entity
 
 import (
 	"image/color"
@@ -6,17 +6,18 @@ import (
 
 	"github.com/gopherjs/gopherwasm/js"
 	"github.com/pichiw/leaflet"
+	"github.com/pichiw/pichiwui/components"
 )
 
 // OnEntityClick is called when an entity is clicked
 type OnEntityClick func(e *Entity)
 
-func NewEntityMap(
+func NewMap(
 	m *leaflet.Map,
 	onClick OnEntityClick,
 	lineColor color.RGBA,
 	entities ...*Entity,
-) *EntityMap {
+) *Map {
 	var markers []*leaflet.Marker
 	var polylines []*leaflet.Polyline
 	var callbacks []js.Callback
@@ -30,7 +31,7 @@ func NewEntityMap(
 				leaflet.NewPolyline(
 					leaflet.PolylineOptions{
 						PathOptions: leaflet.PathOptions{
-							Color: HTMLColor(lineColor),
+							Color: components.HTMLColor(lineColor),
 						},
 					},
 					entities[i-1].Coord,
@@ -40,7 +41,7 @@ func NewEntityMap(
 		}
 	}
 
-	return &EntityMap{
+	return &Map{
 		m:         m,
 		entities:  entities,
 		markers:   markers,
@@ -49,7 +50,7 @@ func NewEntityMap(
 	}
 }
 
-type EntityMap struct {
+type Map struct {
 	m         *leaflet.Map
 	entities  []*Entity
 	markers   []*leaflet.Marker
@@ -67,7 +68,7 @@ func onClicker(onClick OnEntityClick, e *Entity) func(vs []js.Value) {
 	return func(vs []js.Value) { onClick(e) }
 }
 
-func (em *EntityMap) Show(shown []bool) {
+func (em *Map) Show(shown []bool) {
 	if len(shown) != len(em.entities) {
 		panic("invalid shown length")
 	}
@@ -104,7 +105,7 @@ func (em *EntityMap) Show(shown []bool) {
 	em.shown = shown
 }
 
-func (em *EntityMap) Unmount() {
+func (em *Map) Unmount() {
 	for _, cb := range em.callbacks {
 		cb.Release()
 	}
