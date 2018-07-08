@@ -20,11 +20,9 @@ func NewMap(
 ) *Map {
 	var markers []*leaflet.Marker
 	var polylines []*leaflet.Polyline
-	var callbacks []js.Callback
 
 	for i, e := range entities {
-		oc := onClicker(onClick, e)
-		markers = append(markers, leaflet.NewMarker(e.Coord, leaflet.Events{"click": oc}))
+		markers = append(markers, leaflet.NewMarker(e.Coord, leaflet.Events{"click": onClicker(onClick, e)}))
 
 		if i > 0 {
 			polylines = append(polylines,
@@ -46,7 +44,6 @@ func NewMap(
 		entities:  entities,
 		markers:   markers,
 		polylines: polylines,
-		callbacks: callbacks,
 	}
 }
 
@@ -103,10 +100,4 @@ func (em *Map) Show(shown []bool) {
 	}
 
 	em.shown = shown
-}
-
-func (em *Map) Unmount() {
-	for _, cb := range em.callbacks {
-		cb.Release()
-	}
 }

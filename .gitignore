@@ -7,9 +7,12 @@
 # Unignore all dirs
 !*/
 
+!Dockerfile
+
 *.test
 *.tmp
 .DS_Store
 *.exe
 *.wasm
 .vscode
+*.bin
