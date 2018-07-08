@@ -1,0 +1,9 @@
+www.pichiw.com {
+    root /pichiw
+    mime .wasm application/wasm
+}
+
+localhost:9906 {
+    root /pichiw
+    mime .wasm application/wasm
+}
