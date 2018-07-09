@@ -5,6 +5,7 @@ import (
 
 	"github.com/gowasm/vecty"
 	"github.com/gowasm/vecty/elem"
+	"github.com/pichiw/pichiwui/model"
 )
 
 func NewEditor() *Editor {
@@ -16,12 +17,12 @@ type Editor struct {
 	entity atomic.Value
 }
 
-func (p *Editor) SetEntity(e *Entity) {
+func (p *Editor) SetEntity(e *model.Entity) {
 	p.entity.Store(e)
 }
 
-func (p *Editor) Entity() *Entity {
-	e, ok := p.entity.Load().(*Entity)
+func (p *Editor) Entity() *model.Entity {
+	e, ok := p.entity.Load().(*model.Entity)
 	if !ok {
 		return nil
 	}
@@ -29,7 +30,7 @@ func (p *Editor) Entity() *Entity {
 }
 
 func (p *Editor) Render() vecty.ComponentOrHTML {
-	e, ok := p.entity.Load().(*Entity)
+	e, ok := p.entity.Load().(*model.Entity)
 	if !ok || e == nil {
 		return elem.NoScript()
 	}

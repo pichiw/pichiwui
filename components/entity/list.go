@@ -8,9 +8,10 @@ import (
 	"github.com/gowasm/vecty/elem"
 	"github.com/pichiw/leaflet"
 	"github.com/pichiw/md"
+	"github.com/pichiw/pichiwui/model"
 )
 
-func NewList(e []*Entity) *List {
+func NewList(e []*model.Entity) *List {
 	return &List{
 		model:  e,
 		mapDiv: "mapid",
@@ -31,14 +32,14 @@ type List struct {
 	editor *Editor
 
 	slider *md.Slider
-	model  []*Entity
+	model  []*model.Entity
 
 	min      int
 	max      int
 	valMutex sync.Mutex
 }
 
-func shown(model []*Entity, min, max int) []bool {
+func shown(model []*model.Entity, min, max int) []bool {
 	s := make([]bool, len(model))
 	for i := min; i < max; i++ {
 		s[i] = true
@@ -80,10 +81,11 @@ func (l *List) Mount() {
 
 		l.em = NewMap(l.m, l.onEntityClick, color.RGBA{255, 0, 0, 255}, l.model...)
 		l.em.Show(shown(l.model, 0, len(l.model)))
+		l.em.Bounds()
 	})
 }
 
-func (l *List) onEntityClick(e *Entity) {
+func (l *List) onEntityClick(e *model.Entity) {
 	if l.editor.Entity() == e {
 		l.editor.SetEntity(nil)
 	} else {

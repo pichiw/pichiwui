@@ -5,25 +5,26 @@ import (
 	"github.com/gowasm/vecty/elem"
 	"github.com/pichiw/leaflet"
 	"github.com/pichiw/pichiwui/components/entity"
+	"github.com/pichiw/pichiwui/model"
 )
 
 func main() {
 	c := make(chan struct{}, 0)
 
-	entities := []*entity.Entity{
-		&entity.Entity{
+	entities := []*model.Entity{
+		&model.Entity{
 			Name:  "Red River",
 			Coord: leaflet.NewCoordinate(49.8951, -97.1384),
 		},
-		&entity.Entity{
+		&model.Entity{
 			Name:  "Turtle Mountain",
 			Coord: leaflet.NewCoordinate(48.8469, -99.8011),
 		},
-		&entity.Entity{
+		&model.Entity{
 			Name:  "St. Paul des Metis",
 			Coord: leaflet.NewCoordinate(53.8896, -111.4657),
 		},
-		&entity.Entity{
+		&model.Entity{
 			Name:  "Vancouver",
 			Coord: leaflet.NewCoordinate(49.2827, -123.1207),
 		},

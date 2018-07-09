@@ -5,18 +5,20 @@ import (
 	"sync"
 
 	"github.com/gopherjs/gopherwasm/js"
+	"github.com/gowasm/vecty"
 	"github.com/pichiw/leaflet"
 	"github.com/pichiw/pichiwui/components"
+	"github.com/pichiw/pichiwui/model"
 )
 
 // OnEntityClick is called when an entity is clicked
-type OnEntityClick func(e *Entity)
+type OnEntityClick func(e *model.Entity)
 
 func NewMap(
 	m *leaflet.Map,
 	onClick OnEntityClick,
 	lineColor color.RGBA,
-	entities ...*Entity,
+	entities ...*model.Entity,
 ) *Map {
 	var markers []*leaflet.Marker
 	var polylines []*leaflet.Polyline
@@ -39,20 +41,29 @@ func NewMap(
 		}
 	}
 
+	valuers := make([]vecty.JSValuer, 0, len(markers)+len(polylines))
+	for _, m := range markers {
+		valuers = append(valuers, m)
+	}
+	for _, p := range polylines {
+		valuers = append(valuers, p)
+	}
 	return &Map{
 		m:         m,
 		entities:  entities,
 		markers:   markers,
 		polylines: polylines,
+		group:     leaflet.NewFeatureGroup(valuers...),
 	}
 }
 
 type Map struct {
 	m         *leaflet.Map
-	entities  []*Entity
+	entities  []*model.Entity
 	markers   []*leaflet.Marker
 	polylines []*leaflet.Polyline
 	callbacks []js.Callback
+	group     *leaflet.FeatureGroup
 	onClick   OnEntityClick
 	start     int
 	end       int
@@ -61,8 +72,12 @@ type Map struct {
 	shown     []bool
 }
 
-func onClicker(onClick OnEntityClick, e *Entity) func(vs []js.Value) {
+func onClicker(onClick OnEntityClick, e *model.Entity) func(vs []js.Value) {
 	return func(vs []js.Value) { onClick(e) }
+}
+
+func (em *Map) Bounds() {
+	em.m.Bounds(em.group.Bounds())
 }
 
 func (em *Map) Show(shown []bool) {

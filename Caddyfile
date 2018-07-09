@@ -1,9 +1,4 @@
-www.pichiw.com {
-    root /pichiw
-    mime .wasm application/wasm
-}
-
-localhost:9906 {
+www.pichiw.com, pichiw.westus.azurecontainer.io {
     root /pichiw
     mime .wasm application/wasm
 }
